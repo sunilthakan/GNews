@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import urllib.request
+import requests
 import datetime
 import inspect
 import warnings
@@ -299,7 +300,7 @@ class GNews:
         return []
 
     def _get_news(self, query):
-        url = BASE_URL + query + self._ceid()
+        """
         try:
             if self._proxy:
                 proxy_handler = urllib.request.ProxyHandler(self._proxy)
@@ -311,6 +312,22 @@ class GNews:
                     map(self._process, feed_data.entries[:self._max_results]) if item]
         except Exception as err:
             logger.error(err.args[0])
+            return []
+        """
+        url = BASE_URL + '?' + query + self._ceid()
+        try:
+            proxies = self._proxy if self._proxy else None
+            response = requests.get(url, proxies=proxies, headers={'User-Agent': USER_AGENT})
+            response.raise_for_status()
+            feed_data = feedparser.parse(response.text)
+
+            return [
+                item
+                for item in map(self._process, feed_data.entries[: self._max_results])
+                if item
+            ]
+        except requests.RequestException as err:
+            logger.error(err)
             return []
 
     def store_in_mongodb(self, news):
